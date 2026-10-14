@@ -1,0 +1,748 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Peldaño — la escalera diaria de palabras</title>
+<meta name="description" content="Un juego diario de palabras en español: resuelve la escalera, sube peldaño a peldaño y comparte tu tiempo.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Schibsted+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EEF3FB; --surface:#FFFFFF; --ink:#13203F; --muted:#5A6688;
+  --cobalt:#1E43A6; --cobalt-ink:#FFFFFF; --sky:#D5E2FF; --line:#C5D1EA;
+  --saffron:#E39B2F; --saffron-soft:#FBE8C6; --red:#C53F38; --red-soft:#F7D8D5;
+  --rail:#1E43A6;
+  --t:48px; --g:6px;
+  --slab:"Alfa Slab One", Rockwell, "Roboto Slab", Georgia, serif;
+  --sans:"Schibsted Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0C1430; --surface:#162048; --ink:#E7ECFA; --muted:#9BA7CB;
+    --cobalt:#4A71DE; --cobalt-ink:#FFFFFF; --sky:#22336B; --line:#2D3C74;
+    --saffron:#F0B254; --saffron-soft:#43361E; --red:#E5675F; --red-soft:#4B2228; --rail:#3D61C9;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0C1430; --surface:#162048; --ink:#E7ECFA; --muted:#9BA7CB;
+  --cobalt:#4A71DE; --cobalt-ink:#FFFFFF; --sky:#22336B; --line:#2D3C74;
+  --saffron:#F0B254; --saffron-soft:#43361E; --red:#E5675F; --red-soft:#4B2228; --rail:#3D61C9;
+  color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%;margin:0}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);-webkit-tap-highlight-color:transparent;overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:3px solid var(--saffron);outline-offset:2px}
+
+.app{height:100%;max-width:520px;margin:0 auto;display:flex;flex-direction:column;padding:0 14px}
+
+/* Cabecera */
+header{flex:none;padding:8px 0 2px;display:flex;flex-direction:column;gap:4px}
+.hrow{display:flex;align-items:center;gap:8px;min-width:0}
+.hrow.sub{flex-wrap:wrap;row-gap:4px;font-size:13.5px;color:var(--muted)}
+.hrow.sub #fecha{font-weight:500;color:var(--ink)}
+.streak{font-weight:700;font-size:15px;white-space:nowrap}
+.logo{font-family:var(--slab);font-size:26px;color:var(--cobalt);letter-spacing:.5px;margin:0;line-height:1}
+.chip{border:1.5px solid var(--line);border-radius:999px;padding:1px 8px;font-size:12.5px;font-weight:500;white-space:nowrap}
+.chip.dif-fácil{border-color:var(--cobalt);color:var(--cobalt)}
+.chip.dif-medio{border-color:var(--saffron);color:var(--saffron)}
+.chip.dif-difícil{border-color:var(--red);color:var(--red)}
+.spacer{flex:1}
+.timer{font-variant-numeric:tabular-nums;font-weight:700;font-size:16px;min-width:46px;text-align:right}
+.icon-btn{flex:none;background:none;border:none;width:34px;height:34px;padding:0;border-radius:10px;display:grid;place-items:center;color:var(--ink)}
+.icon-btn:hover{background:var(--sky)}
+
+/* Escalera */
+main{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.ladder{position:relative;padding:8px 26px;display:flex;flex-direction:column;gap:calc(var(--g) + 6px)}
+.ladder::before,.ladder::after{content:"";position:absolute;top:0;bottom:0;width:7px;border-radius:4px;background:var(--rail)}
+.ladder::before{left:6px}.ladder::after{right:6px}
+.mid{display:flex;flex-direction:column;gap:var(--g)}
+.row{position:relative;display:flex;justify-content:center;gap:5px;will-change:transform}
+.row::before{content:"";position:absolute;left:-20px;right:-20px;top:50%;height:4px;margin-top:-2px;background:var(--rail);opacity:.28;border-radius:2px;z-index:0}
+.tile{position:relative;z-index:1;width:var(--t);height:var(--t);display:grid;place-items:center;
+  font-family:var(--slab);font-size:calc(var(--t) * .5);line-height:1;text-transform:uppercase;
+  background:var(--surface);border:2px solid var(--line);border-radius:7px;color:var(--ink);
+  transition:background-color .2s,border-color .2s,color .2s;user-select:none;cursor:pointer}
+.row.sel .tile{border-color:var(--cobalt)}
+.row.sel .tile.cur{border-color:var(--saffron);box-shadow:inset 0 0 0 2px var(--saffron)}
+.tile.hint{background:var(--saffron-soft)}
+.row.ok .tile{background:var(--cobalt);border-color:var(--cobalt);color:var(--cobalt-ink);cursor:default}
+.row.ok .tile.hint{box-shadow:inset 0 -5px 0 var(--saffron)}
+.row.bad .tile{background:var(--red-soft);border-color:var(--red)}
+.row.locked .tile{background:transparent;border-style:dashed;color:var(--muted);cursor:not-allowed}
+.tile.step::after{content:"";position:absolute;top:-7px;left:50%;width:8px;height:8px;margin-left:-4px;border-radius:50%;background:var(--saffron)}
+.row.shake{animation:shake .42s}
+@keyframes shake{20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
+.row.win .tile{animation:pop .5s backwards}
+@keyframes pop{40%{transform:scale(1.12)}}
+
+/* Pie: definición, pistas y teclado */
+.foot{flex:none;padding-bottom:10px}
+.clue{background:var(--surface);border-left:5px solid var(--cobalt);border-radius:4px 10px 10px 4px;
+  padding:10px 14px;min-height:66px;display:flex;align-items:center;font-size:16.5px;line-height:1.35;margin:8px 0}
+.clue b{font-weight:700;color:var(--cobalt);margin-right:6px}
+.hints{display:flex;gap:8px;margin-bottom:8px}
+.hint-btn{position:relative;flex:1;height:40px;border-radius:10px;border:1.5px solid var(--cobalt);background:var(--surface);
+  overflow:hidden;font-weight:700;font-size:14.5px;display:flex;align-items:center;justify-content:center;gap:6px}
+.hint-btn span.pen{font-weight:400;color:var(--muted);font-size:13px}
+.hint-btn .fill{position:absolute;inset:0;background:var(--sky);transform-origin:left;transform:scaleX(var(--p,1));z-index:0}
+.hint-btn > *:not(.fill){position:relative;z-index:1}
+.hint-btn:disabled{cursor:not-allowed;border-color:var(--line);color:var(--muted)}
+.hint-btn:disabled .fill{background:var(--sky)}
+.kb{display:flex;flex-direction:column;gap:6px;user-select:none}
+.kb-row{display:flex;gap:5px;justify-content:center}
+.key{flex:1;height:clamp(42px,6.2vh,54px);border:none;border-radius:7px;background:var(--sky);font-weight:700;font-size:17px;
+  display:grid;place-items:center;touch-action:manipulation;padding:0}
+.key:active{background:var(--cobalt);color:var(--cobalt-ink)}
+.key.wide{flex:1.6}
+
+/* Avisos y ventanas */
+.toast{position:fixed;left:50%;top:calc(64px + env(safe-area-inset-top,0px));transform:translate(-50%,-10px);opacity:0;
+  background:var(--ink);color:var(--paper);padding:9px 16px;border-radius:10px;font-weight:500;font-size:14.5px;
+  pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;max-width:90vw;text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.modal{position:fixed;inset:0;background:rgba(8,14,36,.55);display:none;align-items:flex-end;justify-content:center;z-index:40;
+  padding-top:env(safe-area-inset-top,0px)}
+.modal.open{display:flex}
+.sheet{background:var(--surface);color:var(--ink);width:100%;max-width:520px;border-radius:18px 18px 0 0;
+  padding:22px 22px calc(22px + env(safe-area-inset-bottom,0px));max-height:92%;overflow:auto}
+@media (min-width:600px){.modal{align-items:center}.sheet{border-radius:18px}}
+.sheet h2{font-family:var(--slab);font-weight:400;font-size:28px;color:var(--cobalt);margin:0 0 6px}
+.sheet a{color:var(--cobalt);font-weight:700}
+.sheet p{line-height:1.5;margin:8px 0;max-width:60ch}
+.sheet .lead{font-size:17px}
+.btn{display:block;width:100%;height:50px;border:none;border-radius:12px;background:var(--cobalt);color:var(--cobalt-ink);
+  font-weight:700;font-size:17px;margin-top:16px}
+.btn.ghost{background:transparent;color:var(--cobalt);border:1.5px solid var(--cobalt);margin-top:10px}
+.big-time{font-family:var(--slab);font-size:54px;line-height:1;margin:12px 0 4px;color:var(--ink)}
+.pct{background:var(--sky);border-radius:12px;padding:14px 16px;margin:14px 0}
+.pct strong{font-size:22px;display:block}
+.pct small{color:var(--muted);display:block;margin-top:4px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0;text-align:center}
+.stats div{font-size:12.5px;color:var(--muted);line-height:1.25}
+.stats b{display:block;font-family:var(--slab);font-weight:400;font-size:26px;color:var(--ink)}
+.muted{color:var(--muted)}
+.mini{display:flex;gap:4px;justify-content:center;margin:14px 0}
+.mini i{width:22px;height:10px;border-radius:3px;background:var(--cobalt)}
+.mini i.h{background:var(--saffron)}
+.demo{display:flex;flex-direction:column;align-items:center;gap:4px;margin:14px 0}
+.demo .row .tile{--t:30px;cursor:default}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="hrow">
+    <h1 class="logo">Peldaño</h1>
+    <div class="spacer"></div>
+    <span class="streak" id="streak" title="Días seguidos jugando">🔥 0</span>
+    <div class="timer" id="timer" aria-label="Tiempo">0:00</div>
+    <button class="icon-btn" id="btnHelp" aria-label="Cómo se juega">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 .9c0 1.8-2.5 2.2-2.5 3.8"/><circle cx="12" cy="17.2" r=".6" fill="currentColor"/></svg>
+    </button>
+    <button class="icon-btn" id="btnStats" aria-label="Estadísticas">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 20V12M12 20V5M19 20v-9"/></svg>
+    </button>
+    </div>
+    <div class="hrow sub"><span id="fecha">Juego del día</span><span class="chip" id="dif">Fácil</span><span class="chip" id="len">4 letras</span></div>
+  </header>
+
+  <main><div class="ladder" id="ladder"></div></main>
+
+  <div class="foot">
+    <div class="clue" id="clue" aria-live="polite"></div>
+    <div class="hints">
+      <button class="hint-btn" id="hintL"><i class="fill"></i><span>Pista de letra</span></button>
+      <button class="hint-btn" id="hintW"><i class="fill"></i><span>Pista de palabra</span></button>
+    </div>
+    <div class="kb" id="kb"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+<div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
+
+<script>
+/* ================================================================
+   CONFIGURACIÓN
+   ================================================================ */
+const LAUNCH = [2026, 10, 14];             // día 1 del juego (año, mes, día)
+const COOLDOWN = { letra: 10, palabra: 25 }; // segundos de recarga
+// Ranking real del día (Supabase). Pega aquí la URL y la clave pública de tu proyecto.
+// Si se dejan vacías, el juego usa el percentil estimado.
+const SUPABASE_URL = "";
+const SUPABASE_KEY = "";
+const GAME_ID = "general";
+// Mediana de referencia (segundos) para estimar el percentil, por dificultad y 4 letras
+const REF_MEDIAN = { "fácil": 75, "medio": 110, "difícil": 160 };
+
+/* ================================================================
+   BANCO DE ESCALERAS
+   words: 7 palabras en orden de escalera [arriba, 5 del centro, abajo].
+   Cada palabra cambia una sola letra respecto a la siguiente.
+   clues: definiciones de las 5 del centro, en orden.
+   ends: una sola definición compartida por la de arriba y la de abajo.
+   Sin tildes en las respuestas (la Ñ sí vale).
+   ================================================================ */
+const PUZZLES = [
+  { dif:"fácil", words:["JOTA","ROTA","RATA","RANA","LANA","LUNA","TUNA"],
+    ends:"Música popular española: un baile aragonés y la estudiantina de capa y bandurria",
+    clues:[
+    "Localidad gaditana con base naval compartida con Estados Unidos",
+    "Dicho de una persona: tacaña, que no suelta un euro",
+    "«Salir ___»: decepcionar a quien esperaba mucho de ti",
+    "Fibra que da la oveja merina",
+    "Satélite que pisó Neil Armstrong en 1969"]},
+  { dif:"medio", words:["SALSA","FALSA","FALLA","TALLA","TALLO","TALGO","TANGO"],
+    ends:"Dos bailes: uno caribeño y otro nacido en Buenos Aires",
+    clues:[
+    "«Moneda ___»: la que no vale nada",
+    "Monumento de cartón que arde en Valencia cada marzo",
+    "S, M, L o XL",
+    "Parte de la planta que sostiene hojas y flores",
+    "Tren español ideado por el ingeniero Alejandro Goicoechea"]},
+  { dif:"fácil", words:["MESA","MASA","CASA","CAPA","COPA","SOPA","SOFA"],
+    ends:"Muebles del salón: uno para comer y otro para la siesta",
+    clues:[
+    "La de la pizza se estira a mano",
+    "«Como Pedro por su ___»",
+    "Prenda del torero y de casi todos los superhéroes",
+    "Trofeo que levanta el campeón; la del Rey se juega cada primavera",
+    "«Hasta en la ___»: cuando algo aparece por todas partes"]},
+  { dif:"medio", words:["DATO","DADO","LADO","LAGO","PAGO","PASO","CASO"],
+    ends:"Lo que cuenta un epidemiólogo, cifra a cifra y paciente a paciente («estudio de ___s y controles»)",
+    clues:[
+    "Cubo del parchís con puntos del uno al seis",
+    "Cada uno de los segmentos que forman un polígono",
+    "El de Sanabria, en Zamora, es el mayor de origen glaciar de la península",
+    "Abono de lo que se debe; «___ por adelantado»",
+    "Escultura que sale en procesión en Semana Santa"]},
+  { dif:"medio", words:["MANGO","MANCO","BANCO","BANCA","BANDA","MANDA","MANDO"],
+    ends:"Quien tiene la sartén por el ___ es quien tiene el ___",
+    clues:[
+    "«No ser ___»: ser muy hábil en algo",
+    "Santander o BBVA, por ejemplo",
+    "En el casino, siempre gana",
+    "La de música anima las fiestas del pueblo; también, el lateral del campo",
+    "«Donde hay patrón, no ___ marinero»"]},
+  { dif:"fácil", words:["TAPA","MAPA","MANA","MINA","FINA","FINO","VINO"],
+    ends:"El combo clásico de la barra: si pides un ___, te ponen la ___",
+    clues:[
+    "Lo que consultabas antes de que existiera el GPS",
+    "Alimento que caía del cielo en el desierto, según la Biblia",
+    "Las de Riotinto, en Huelva, tiñen el río de rojo",
+    "«Lluvia ___»: la que apenas moja pero acaba calando",
+    "Delicado, con buenos modales"]},
+  { dif:"difícil", words:["PARADO","PAGADO","PASADO","PESADO","PELADO","VELADO","HELADO"],
+    ends:"Dos formas de decir que te quedaste de piedra, sin reaccionar («me quedé ___»)",
+    clues:[
+    "«___ de sí mismo»: engreído",
+    "«Agua ___ no mueve molino»",
+    "Dicho de alguien: que cansa de tanto insistir",
+    "«Estar ___»: no tener ni un euro",
+    "Dicho de una amenaza: insinuada, no dicha a las claras"]},
+  { dif:"medio", words:["POLO","PELO","PESO","PISO","PICO","PICA","PIPA"],
+    ends:"Clásicos del quiosco en verano: un ___ de hielo y una bolsa de ___s",
+    clues:[
+    "«No tener ___s en la lengua»: decir lo que se piensa",
+    "Moneda de México y de Argentina",
+    "Vivienda dentro de un edificio; en Madrid, carísima",
+    "El Aneto es el más alto de los Pirineos",
+    "«Poner una ___ en Flandes»: lograr algo muy difícil"]},
+  { dif:"medio", words:["PATA","NATA","GATA","GALA","BALA","BOLA","COLA"],
+    ends:"Partes de un perro: la que te da si se la pides y la que mueve cuando está contento",
+    clues:[
+    "«La flor y ___»: lo mejor de lo mejor",
+    "Hembra del animal que da apodo a los madrileños castizos",
+    "Ceremonia como la de los Goya",
+    "«Ir como una ___»: ir rapidísimo",
+    "«Ir a mi ___»: ir a lo mío"]},
+  { dif:"fácil", words:["TORO","CORO","CARO","PARO","PARA","VARA","VACA"],
+    ends:"El macho y la hembra del ganado vacuno",
+    clues:[
+    "El de la iglesia o el de la ópera",
+    "Que cuesta mucho dinero",
+    "Desempleo; sus cifras se publican cada mes",
+    "Preposición de finalidad: «trabajo ___ vivir»",
+    "«Dar la ___»: molestar con insistencia"]},
+];
+
+/* ================================================================
+   ALMACENAMIENTO (con respaldo en memoria si el navegador lo bloquea)
+   ================================================================ */
+const MEM = {};
+const store = {
+  get(k){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : (MEM[k] ?? null); }catch(e){ return MEM[k] ?? null; } },
+  set(k,v){ MEM[k] = v; try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+
+/* ================================================================
+   FECHA Y RETO DEL DÍA (igual para todos los jugadores)
+   ================================================================ */
+const pad = n => String(n).padStart(2,"0");
+const dateKey = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+function dayIndex(d = new Date()){
+  const a = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  const b = Date.UTC(LAUNCH[0], LAUNCH[1]-1, LAUNCH[2]);
+  return Math.floor((a - b) / 864e5);
+}
+const params = new URLSearchParams(location.search);
+const TEST = params.has("dia");                    // ?dia=3 para probar otro reto sin tocar rachas
+const DIDX = TEST ? Math.max(0, parseInt(params.get("dia"),10)-1 || 0) : Math.max(0, dayIndex());
+const NUM = DIDX + 1;
+const P = PUZZLES[DIDX % PUZZLES.length];
+const PDATE = new Date(LAUNCH[0], LAUNCH[1]-1, LAUNCH[2] + DIDX);
+const FECHA = new Intl.DateTimeFormat("es-ES", { day:"numeric", month:"long" }).format(PDATE);
+const N = P.words[0].length;
+const TODAY = dateKey(new Date());
+const PKEY = TEST ? `peldano:v2:prueba:${NUM}` : `peldano:v2:partida:${TODAY}`;
+const SKEY = "peldano:stats";
+
+function rng(seed){ return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function dailyOrder(){
+  const r = rng(NUM * 9973 + 17); let o;
+  do { o = [1,2,3,4,5]; for(let i=o.length-1;i>0;i--){ const j = Math.floor(r()*(i+1)); [o[i],o[j]]=[o[j],o[i]]; } }
+  while (o.join() === "1,2,3,4,5" || o.join() === "5,4,3,2,1");
+  return o;
+}
+
+/* ================================================================
+   ESTADO
+   ================================================================ */
+function freshState(){
+  return { order: dailyOrder(), entries: P.words.map(w => Array(w.length).fill("")),
+    fixed: P.words.map(() => []), status: Array(7).fill(""), phase: "intro",
+    start: null, end: null, hintsL: 0, hintsW: 0, errors: 0, hinted: [], readyL: 0, readyW: 0 };
+}
+let S = store.get(PKEY);
+if (!S || !S.entries || S.entries[0].length !== N) S = freshState();
+let sel = null, cur = 0;
+const save = () => store.set(PKEY, S);
+
+/* ================================================================
+   DOM
+   ================================================================ */
+const $ = s => document.querySelector(s);
+const ladder = $("#ladder"), clueEl = $("#clue"), timerEl = $("#timer");
+const rowEl = [], tileEl = [];
+let midEl;
+
+function buildLadder(){
+  ladder.innerHTML = "";
+  const mk = w => {
+    const r = document.createElement("div"); r.className = "row"; r.dataset.w = w;
+    tileEl[w] = [];
+    for (let i=0;i<N;i++){
+      const t = document.createElement("div"); t.className = "tile";
+      t.addEventListener("click", () => select(w, i));
+      r.appendChild(t); tileEl[w][i] = t;
+    }
+    rowEl[w] = r; return r;
+  };
+  ladder.appendChild(mk(0));
+  midEl = document.createElement("div"); midEl.className = "mid";
+  const order = S.phase === "intro" || S.phase === "middle" ? S.order : [1,2,3,4,5];
+  order.forEach(w => midEl.appendChild(mk(w)));
+  ladder.appendChild(midEl);
+  ladder.appendChild(mk(6));
+}
+
+function buildKeyboard(){
+  const rows = ["QWERTYUIOP","ASDFGHJKLÑ","ZXCVBNM⌫"];
+  const kb = $("#kb");
+  rows.forEach(line => {
+    const r = document.createElement("div"); r.className = "kb-row";
+    [...line].forEach(ch => {
+      const b = document.createElement("button"); b.className = "key"; b.type = "button";
+      if (ch === "⌫"){ b.classList.add("wide"); b.setAttribute("aria-label","Borrar");
+        b.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M8 5h12v14H8l-6-7z"/><path d="M12 9.5l5 5M17 9.5l-5 5"/></svg>';
+        b.addEventListener("click", backspace);
+      } else { b.textContent = ch; b.addEventListener("click", () => typeLetter(ch)); }
+      r.appendChild(b);
+    });
+    kb.appendChild(r);
+  });
+}
+
+/* ================================================================
+   LÓGICA DEL JUEGO
+   ================================================================ */
+const visualOrder = () => S.phase === "middle" || S.phase === "intro" ? [0, ...S.order, 6] : [0,1,2,3,4,5,6];
+const isEnd = w => w === 0 || w === 6;
+const isLocked = w => isEnd(w) && (S.phase === "middle" || S.phase === "intro");
+const editable = w => w !== null && !isLocked(w) && S.status[w] !== "ok" && (S.phase === "middle" || S.phase === "ends");
+const rowFull = w => S.entries[w].every(c => c);
+const word = w => S.entries[w].join("");
+const isFixed = (w,i) => S.fixed[w].includes(i);
+const firstEmpty = w => { for(let i=0;i<N;i++) if(!S.entries[w][i] && !isFixed(w,i)) return i; return -1; };
+const firstFree = w => { for(let i=0;i<N;i++) if(!isFixed(w,i)) return i; return 0; };
+const diffPos = (a,b) => { for(let i=0;i<a.length;i++) if(a[i]!==b[i]) return i; return -1; };
+
+function select(w, pos){
+  if (S.phase === "done" || S.phase === "intro") return;
+  if (isLocked(w)){ toast("Se desbloquea cuando ordenes la escalera"); return; }
+  if (S.status[w] === "ok"){ sel = w; update(); return; }
+  sel = w;
+  if (pos !== undefined && !isFixed(w,pos)) cur = pos;
+  else { const e = firstEmpty(w); cur = e >= 0 ? e : firstFree(w); }
+  update();
+}
+
+function nextOpenRow(from){
+  const vo = visualOrder().filter(w => editable(w));
+  if (!vo.length) return null;
+  const all = visualOrder(); const start = all.indexOf(from);
+  for (let k=1;k<=all.length;k++){
+    const w = all[(start+k) % all.length];
+    if (editable(w) && (!rowFull(w) || S.status[w] === "bad")) return w;
+  }
+  return null;
+}
+
+function typeLetter(L){
+  if (!editable(sel)) return;
+  if (S.status[sel] === "bad"){ S.status[sel] = ""; }
+  while (cur < N && isFixed(sel,cur)) cur++;
+  if (cur >= N) return;
+  S.entries[sel][cur] = L;
+  let n = cur + 1; while (n < N && isFixed(sel,n)) n++;
+  if (n < N) cur = n;
+  save();
+  if (rowFull(sel)) afterRowFilled(sel); else update();
+}
+
+function backspace(){
+  if (!editable(sel)) return;
+  if (S.status[sel] === "bad") S.status[sel] = "";
+  if (S.entries[sel][cur] && !isFixed(sel,cur)) S.entries[sel][cur] = "";
+  else {
+    let p = cur - 1; while (p >= 0 && isFixed(sel,p)) p--;
+    if (p >= 0){ cur = p; S.entries[sel][p] = ""; }
+  }
+  save(); update();
+}
+
+function afterRowFilled(w){
+  const group = S.phase === "middle" ? [1,2,3,4,5] : [0,6];
+  if (group.every(rowFull)) { check(group); return; }
+  const nx = nextOpenRow(w);
+  if (nx !== null) select(nx); else update();
+}
+
+function check(group){
+  const wrong = group.filter(w => word(w) !== P.words[w]);
+  group.forEach(w => { S.status[w] = wrong.includes(w) ? "bad" : "ok"; });
+  if (wrong.length){
+    S.errors += wrong.length; save();
+    wrong.forEach(w => { rowEl[w].classList.remove("shake"); void rowEl[w].offsetWidth; rowEl[w].classList.add("shake"); });
+    toast(wrong.length === 1 ? "Una palabra no encaja" : `${wrong.length} palabras no encajan`);
+    sel = null; select(wrong[0]); cur = firstFree(wrong[0]); update();
+    return;
+  }
+  if (S.phase === "middle") reorder(); else finish();
+}
+
+function reorder(){
+  S.phase = "ends"; save();
+  const rows = [...midEl.children];
+  const before = new Map(rows.map(r => [r, r.getBoundingClientRect().top]));
+  [1,2,3,4,5].forEach(w => midEl.appendChild(rowEl[w]));
+  if (!matchMedia("(prefers-reduced-motion: reduce)").matches){
+    rows.forEach(r => { const dy = before.get(r) - r.getBoundingClientRect().top;
+      r.style.transition = "none"; r.style.transform = `translateY(${dy}px)`; });
+    void midEl.offsetHeight;
+    rows.forEach((r,i) => { r.style.transition = `transform 700ms cubic-bezier(.2,.8,.2,1) ${i*50}ms`; r.style.transform = ""; });
+  }
+  toast("¡Escalera ordenada! Ahora, arriba y abajo");
+  sel = null; setTimeout(() => select(0), 400); update();
+}
+
+function finish(){
+  S.phase = "done"; S.end = Date.now(); save();
+  if (!TEST) { recordStats(); sendResult(); }
+  sel = null; update();
+  [0,1,2,3,4,5,6].forEach((w,i) => { rowEl[w].classList.add("win");
+    rowEl[w].querySelectorAll(".tile").forEach((t,j) => t.style.animationDelay = `${i*70 + j*30}ms`); });
+  setTimeout(showResults, 1300);
+}
+
+/* Pistas */
+function hint(kind){
+  const now = Date.now();
+  if (kind === "letra" && now < S.readyL) return;
+  if (kind === "palabra" && now < S.readyW) return;
+  if (!editable(sel)){ toast("Elige primero una fila sin resolver"); return; }
+  if (S.status[sel] === "bad") S.status[sel] = "";
+  const ans = P.words[sel];
+  if (kind === "letra"){
+    let i = -1; for (let k=0;k<N;k++) if (S.entries[sel][k] !== ans[k]){ i = k; break; }
+    if (i < 0) return;
+    S.entries[sel][i] = ans[i]; if (!isFixed(sel,i)) S.fixed[sel].push(i);
+    S.hintsL++; S.readyL = now + COOLDOWN.letra*1000;
+    const e = firstEmpty(sel); cur = e >= 0 ? e : cur;
+    if (isFixed(sel,cur)){ let n=cur; while(n<N && isFixed(sel,n)) n++; cur = n<N ? n : cur; }
+  } else {
+    S.entries[sel] = [...ans]; S.fixed[sel] = [...Array(N).keys()];
+    S.hintsW++; S.readyW = now + COOLDOWN.palabra*1000;
+  }
+  if (!S.hinted.includes(sel)) S.hinted.push(sel);
+  save();
+  if (rowFull(sel)) afterRowFilled(sel); else update();
+}
+
+/* ================================================================
+   PINTADO
+   ================================================================ */
+function update(){
+  const steps = new Set();
+  if (S.phase === "ends" || S.phase === "done"){
+    const from = S.phase === "done" ? 0 : 1, to = S.phase === "done" ? 6 : 5;
+    for (let w=from; w<to; w++) steps.add(`${w+1}:${diffPos(P.words[w], P.words[w+1])}`);
+  }
+  for (let w=0; w<7; w++){
+    const r = rowEl[w];
+    r.classList.toggle("sel", w === sel && S.status[w] !== "ok");
+    r.classList.toggle("ok", S.status[w] === "ok");
+    r.classList.toggle("bad", S.status[w] === "bad");
+    r.classList.toggle("locked", isLocked(w));
+    for (let i=0;i<N;i++){
+      const t = tileEl[w][i];
+      t.textContent = isLocked(w) ? "" : S.entries[w][i];
+      t.classList.toggle("cur", w === sel && i === cur);
+      t.classList.toggle("hint", isFixed(w,i));
+      t.classList.toggle("step", steps.has(`${w}:${i}`));
+    }
+  }
+  // Definición
+  if (S.phase === "done") clueEl.innerHTML = "Escalera completa. Vuelve mañana a por el siguiente peldaño.";
+  else if (sel === null) clueEl.textContent = S.phase === "ends" ? "Toca la fila de arriba o la de abajo." : "Toca una fila para ver su definición.";
+  else {
+    clueEl.innerHTML = isEnd(sel) ? "<b>Arriba y abajo</b>" + escapeHTML(P.ends) : escapeHTML(P.clues[sel-1]);
+  }
+  tick();
+}
+const escapeHTML = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+const fmt = s => { s = Math.max(0, Math.round(s)); const m = Math.floor(s/60); return `${m}:${pad(s%60)}`; };
+const elapsed = () => S.start ? ((S.end || Date.now()) - S.start) / 1000 : 0;
+const score = () => elapsed();
+
+function tick(){
+  timerEl.textContent = fmt(elapsed());
+  const now = Date.now(), playing = S.phase === "middle" || S.phase === "ends";
+  [["#hintL", S.readyL, COOLDOWN.letra], ["#hintW", S.readyW, COOLDOWN.palabra]].forEach(([id, ready, cd]) => {
+    const b = $(id), left = Math.max(0, ready - now);
+    b.style.setProperty("--p", (1 - left / (cd*1000)).toFixed(3));
+    b.disabled = !playing || left > 0;
+  });
+}
+setInterval(tick, 100);
+
+/* ================================================================
+   ESTADÍSTICAS, PERCENTIL Y COMPARTIR
+   ================================================================ */
+function yesterdayKey(){ const d = new Date(); d.setDate(d.getDate()-1); return dateKey(d); }
+function getStats(){ return store.get(SKEY) || { played:0, streak:0, max:0, last:null, best:null, hist:{} }; }
+function liveStreak(st){ return (st.last === TODAY || st.last === yesterdayKey()) ? st.streak : 0; }
+function paintStreak(){ $("#streak").textContent = "🔥 " + liveStreak(getStats()); }
+function cheer(pc){
+  if (pc >= 90) return "¡Top 10 % de hoy! Eres de lo mejor del día";
+  if (pc >= 75) return "¡Más rápido que 3 de cada 4 jugadores!";
+  if (pc >= 50) return "¡Estás por encima de la mitad de los jugadores!";
+  if (pc >= 25) return "Mejor que 1 de cada 4 jugadores. Mañana, a por más";
+  return "Lo importante es no romper la racha. ¡Mañana, revancha!";
+}
+function streakLine(n){
+  if (n <= 1) return "Primer día de racha. Vuelve mañana para empezar a sumar.";
+  return `${n} días seguidos. ¡No la rompas mañana!`;
+}
+function recordStats(){
+  const st = getStats();
+  if (st.hist[TODAY]) return;
+  st.streak = st.last === yesterdayKey() ? st.streak + 1 : 1;
+  st.max = Math.max(st.max, st.streak); st.played++; st.last = TODAY;
+  st.best = st.best === null ? Math.round(score()) : Math.min(st.best, Math.round(score()));
+  st.hist[TODAY] = { n: NUM, t: Math.round(score()), h: S.hintsL + S.hintsW, e: S.errors };
+  store.set(SKEY, st); paintStreak();
+}
+function erf(x){ const s = Math.sign(x); x = Math.abs(x); const t = 1/(1+0.3275911*x);
+  const y = 1 - (((((1.061405429*t - 1.453152027)*t) + 1.421413741)*t - 0.284496736)*t + 0.254829592)*t*Math.exp(-x*x); return s*y; }
+function percentile(sec){
+  const med = REF_MEDIAN[P.dif] * (N/4);
+  const z = (Math.log(Math.max(sec,1)) - Math.log(med)) / 0.55;
+  return Math.max(1, Math.min(99, Math.round(100 * (1 - 0.5*(1+erf(z/Math.SQRT2))))));
+}
+/* Ranking real: solo se envía reto, juego y segundos. Nunca nombres ni datos personales. */
+const RANKING = !!(SUPABASE_URL && SUPABASE_KEY);
+async function rpc(fn, body){
+  const h = { "Content-Type":"application/json", apikey: SUPABASE_KEY };
+  if (!SUPABASE_KEY.startsWith("sb_")) h.Authorization = "Bearer " + SUPABASE_KEY;
+  const r = await fetch(`${SUPABASE_URL.replace(/\/$/,"")}/rest/v1/rpc/${fn}`, { method:"POST", headers:h, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error("ranking " + r.status);
+  return r.json();
+}
+async function sendResult(){
+  if (!RANKING || S.sent) return;
+  try {
+    const p = await rpc("enviar_partida", { p_juego: GAME_ID, p_reto: NUM, p_segundos: Math.round(score()) });
+    S.sent = true; S.pct = p; save(); paintPct();
+  } catch(e){ /* sin conexión: se queda el estimado */ }
+}
+async function refreshPct(){
+  if (!RANKING || TEST || !S.sent) return;
+  try { const p = await rpc("percentil", { p_juego: GAME_ID, p_reto: NUM, p_segundos: Math.round(score()) }); S.pct = p; save(); paintPct(); } catch(e){}
+}
+// Devuelve { pc, real, early }: real = ranking de hoy; early = aún hay muy pocas partidas hoy
+function pctInfo(){
+  if (RANKING && S.sent){
+    if (S.pct === null || S.pct === undefined) return { pc:null, real:true, early:true };
+    return { pc: Math.max(1, Math.min(99, S.pct)), real:true, early:false };
+  }
+  return { pc: percentile(score()), real:false, early:false };
+}
+function pctHTML(){
+  const i = pctInfo();
+  if (i.early) return `<strong>¡De los primeros en completar el reto de hoy!</strong><small>Vuelve más tarde para ver en qué percentil quedas.</small>`;
+  return `<strong>${cheer(i.pc)}</strong><small>Más rápido que el ${i.pc} % de los jugadores de hoy (percentil ${i.pc}${i.real ? "" : ", cálculo estimado"}).</small>`;
+}
+function paintPct(){ const b = document.getElementById("pctBox"); if (b) b.innerHTML = pctHTML(); }
+
+function shareText(){
+  const i = pctInfo(), pc = i.pc;
+  const bar = [0,1,2,3,4,5,6].map(w => S.hinted.includes(w) ? "🟨" : "🟦").join("");
+  const h = S.hintsL + S.hintsW;
+  const url = /^https?:/.test(location.protocol) ? "\n" + location.origin + location.pathname : "";
+  const st = getStats();
+  return `Peldaño, juego del ${FECHA} (${P.dif})\n${bar}\n⏱️ ${fmt(score())}  💡 ${h} ${h===1?"pista":"pistas"}\n` +
+         (i.early ? "De los primeros en completarlo hoy" : `Más rápido que el ${pc} % de jugadores`) + `\n🔥 Racha: ${liveStreak(st)}${url}`;
+}
+async function share(){
+  const text = shareText();
+  if (navigator.share){ try { await navigator.share({ text }); return; } catch(e){ if (e.name === "AbortError") return; } }
+  try { await navigator.clipboard.writeText(text); toast("Resultado copiado"); }
+  catch(e){ const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); toast("Resultado copiado"); } catch(_){ toast("No se pudo copiar"); } ta.remove(); }
+}
+
+/* ================================================================
+   VENTANAS
+   ================================================================ */
+const modal = $("#modal"), sheet = $("#sheet");
+function openModal(html){ sheet.innerHTML = html; modal.classList.add("open"); const b = sheet.querySelector("button"); b && b.focus(); }
+function closeModal(){ modal.classList.remove("open"); }
+modal.addEventListener("click", e => { if (e.target === modal && S.phase !== "intro") closeModal(); });
+
+function demoLadder(){
+  const ws = ["GATO","PATO","PALO"];
+  return `<div class="demo">${ws.map(w => `<div class="row">${[...w].map(c => `<div class="tile">${c}</div>`).join("")}</div>`).join("")}</div>`;
+}
+function rulesHTML(){
+  return `<p class="lead">Cada palabra cambia una sola letra respecto a la siguiente, como los peldaños de una escalera.</p>
+  ${demoLadder()}
+  <p>Resuelve las cinco palabras del centro con sus definiciones. No sabrás si alguna falla hasta que hayas escrito las cinco.</p>
+  <p>Cuando todas estén bien, la escalera se ordena sola y se desbloquean la palabra de arriba y la de abajo.</p>
+  <p>La de arriba y la de abajo comparten una misma definición.</p>
+  <p>¿Te va la ciencia? Prueba también <a href="stem/">Peldaño STEM</a>.</p>
+  <p class="muted">Para calcular tu percentil del día solo se guarda, de forma anónima, el tiempo que tardas. Sin nombres ni datos personales.</p>
+  <p class="muted">Tras usar la pista de letra, tendrás que esperar ${COOLDOWN.letra} s para la siguiente; tras la de palabra, ${COOLDOWN.palabra} s. Hay un reto nuevo cada día, el mismo para todo el mundo.</p>`;
+}
+function showIntro(){
+  openModal(`<h2>Juego del ${FECHA}</h2>${rulesHTML()}<button class="btn" id="play">Empezar el reto</button>`);
+  $("#play").onclick = () => { closeModal(); S.phase = "middle"; S.start = Date.now(); save(); select(S.order[0]); };
+}
+function showHelp(){
+  if (S.phase === "intro") return showIntro();
+  openModal(`<h2>Cómo se juega</h2>${rulesHTML()}<button class="btn" id="ok">Seguir jugando</button>`);
+  $("#ok").onclick = closeModal;
+}
+function statsBlock(){
+  const st = getStats();
+  return `<div class="stats">
+    <div><b>${st.played}</b>jugados</div><div><b>${liveStreak(st)}</b>racha actual</div>
+    <div><b>${st.max}</b>mejor racha</div><div><b>${st.best === null ? "–" : fmt(st.best)}</b>mejor tiempo</div></div>`;
+}
+function nextIn(){
+  const n = new Date(); n.setHours(24,0,0,0); const s = Math.floor((n - Date.now())/1000);
+  return `${pad(Math.floor(s/3600))}:${pad(Math.floor(s%3600/60))}:${pad(s%60)}`;
+}
+let cdTimer;
+function showResults(){
+  const h = S.hintsL + S.hintsW;
+  openModal(`<h2>¡Escalera completa!</h2>
+    <div class="big-time">${fmt(score())}</div>
+    <p class="muted">${h} ${h===1?"pista usada":"pistas usadas"}. ${S.errors} ${S.errors===1?"palabra fallada":"palabras falladas"}.</p>
+    <div class="mini">${[0,1,2,3,4,5,6].map(w => `<i class="${S.hinted.includes(w)?"h":""}"></i>`).join("")}</div>
+    <div class="pct" id="pctBox">${pctHTML()}</div>
+    <p><b>🔥 ${streakLine(liveStreak(getStats()))}</b></p>
+    ${statsBlock()}
+    <button class="btn" id="share">Compartir resultado</button>
+    <p class="muted" style="text-align:center;margin-top:14px">Siguiente reto en <span id="cd">${nextIn()}</span></p>`);
+  $("#share").onclick = share;
+  if (!S.sent) sendResult(); else refreshPct();
+  clearInterval(cdTimer); cdTimer = setInterval(() => { const c = $("#cd"); if (c) c.textContent = nextIn(); else clearInterval(cdTimer); }, 1000);
+}
+function showStats(){
+  if (S.phase === "done") return showResults();
+  openModal(`<h2>Tus estadísticas</h2>${statsBlock()}<p class="muted">Se guardan en este navegador. Juega cada día para mantener la racha.</p><button class="btn" id="ok">Volver al reto</button>`);
+  $("#ok").onclick = closeModal;
+}
+
+/* ================================================================
+   EVENTOS Y TAMAÑO
+   ================================================================ */
+let toastT;
+function toast(msg){ const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2000); }
+
+document.addEventListener("keydown", e => {
+  if (modal.classList.contains("open")){ if (e.key === "Escape" && S.phase !== "intro") closeModal(); return; }
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key.normalize("NFD").replace(/[\u0300-\u0301\u0308]/g, "").normalize("NFC").toUpperCase();
+  if (/^[A-ZÑ]$/.test(k)){ typeLetter(k); e.preventDefault(); return; }
+  if (e.key === "Backspace"){ backspace(); e.preventDefault(); return; }
+  if (sel === null) return;
+  const vo = visualOrder(), i = vo.indexOf(sel);
+  if (e.key === "ArrowDown" || e.key === "Enter"){ for (let k2=i+1;k2<vo.length;k2++) if (!isLocked(vo[k2])){ select(vo[k2]); break; } e.preventDefault(); }
+  if (e.key === "ArrowUp"){ for (let k2=i-1;k2>=0;k2--) if (!isLocked(vo[k2])){ select(vo[k2]); break; } e.preventDefault(); }
+  if (e.key === "ArrowLeft" && cur > 0){ cur--; update(); }
+  if (e.key === "ArrowRight" && cur < N-1){ cur++; update(); }
+});
+$("#hintL").onclick = () => hint("letra");
+$("#hintW").onclick = () => hint("palabra");
+$("#btnHelp").onclick = showHelp;
+$("#btnStats").onclick = showStats;
+
+function fit(){
+  const main = document.querySelector("main");
+  const g = 6, h = main.clientHeight - 16 - 6*g - 12 - 12;
+  const w = Math.min(window.innerWidth, 520) - 28 - 52 - (N-1)*5;
+  const t = Math.max(24, Math.min(58, Math.floor(h/7), Math.floor(w/N)));
+  document.documentElement.style.setProperty("--t", t + "px");
+}
+window.addEventListener("resize", fit);
+
+/* ================================================================
+   ARRANQUE
+   ================================================================ */
+$("#fecha").textContent = `Juego del ${FECHA}`;
+paintStreak();
+const difEl = $("#dif"); difEl.textContent = P.dif[0].toUpperCase() + P.dif.slice(1); difEl.classList.add("dif-" + P.dif);
+$("#len").textContent = `${N} letras`;
+buildLadder(); buildKeyboard(); fit(); update();
+if (S.phase === "intro") showIntro();
+else if (S.phase === "done") setTimeout(showResults, 300);
+else select(S.phase === "ends" ? (S.status[0] === "ok" ? 6 : 0) : (nextOpenRow(S.order[S.order.length-1]) ?? S.order[0]));
+</script>
+</body>
+</html>
